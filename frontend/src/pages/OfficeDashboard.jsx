@@ -42,6 +42,8 @@ export default function OfficeDashboard({ user, setUser }) {
   const [invoiceNotice, setInvoiceNotice] = useState('');
   const [invoiceBusy, setInvoiceBusy] = useState(false);
   const [paymentData, setPaymentData] = useState({ paymentMethod: 'CASH' });
+  const generalPendingJobs = invoiceWork.pending.filter(job => job.billType !== 'CUSTOM_MODIFICATION');
+  const modificationPendingJobs = invoiceWork.pending.filter(job => job.billType === 'CUSTOM_MODIFICATION');
 
   const [partForm, setPartForm] = useState({ itemName: '', unitPrice: '', quantityInStock: '', reorderLevel: 10 });
   const [spareParts, setSpareParts] = useState([]);
@@ -376,19 +378,36 @@ export default function OfficeDashboard({ user, setUser }) {
         <div className="om-invoice-sections">
           <div className="om-card">
             <h3>Pending Payments</h3>
-            <p className="om-muted">Select a completed job that has not been paid. Each option shows its vehicle and customer.</p>
+            <p className="om-muted">Select a completed, unpaid job from the appropriate bill list. Each job has its own invoice and payment.</p>
             {invoiceError && <p className="om-invoice-error" role="alert">{invoiceError}</p>}
             {invoiceNotice && <p className="om-invoice-notice" role="status">{invoiceNotice}</p>}
-            <div className="om-form-group">
-              <label htmlFor="pending-invoice-job">Vehicle and customer</label>
-              <select id="pending-invoice-job" className="om-input" value={invoiceData.jobCardId} onChange={event => loadInvoiceSummary(event.target.value)}>
-                <option value="">-- Select a job awaiting payment --</option>
-                {invoiceWork.pending.map(job => (
-                  <option key={job.jobCardId} value={job.jobCardId}>
-                    {job.registrationNo} — {job.customerName || 'Unknown customer'} — {job.stageName || 'Service'} ({job.jobCardId})
-                  </option>
-                ))}
-              </select>
+            <div className="om-pending-bill-selects">
+              <div className="om-form-group">
+                <label htmlFor="pending-general-job">General repair bill</label>
+                <select id="pending-general-job" className="om-input"
+                  value={generalPendingJobs.some(job => job.jobCardId === invoiceData.jobCardId) ? invoiceData.jobCardId : ''}
+                  onChange={event => loadInvoiceSummary(event.target.value)}>
+                  <option value="">-- Select a general repair --</option>
+                  {generalPendingJobs.map(job => (
+                    <option key={job.jobCardId} value={job.jobCardId}>
+                      {job.registrationNo} — {job.customerName || 'Unknown customer'} — {job.stageName || 'Service'} ({job.jobCardId})
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div className="om-form-group">
+                <label htmlFor="pending-modification-job">Custom modification bill</label>
+                <select id="pending-modification-job" className="om-input"
+                  value={modificationPendingJobs.some(job => job.jobCardId === invoiceData.jobCardId) ? invoiceData.jobCardId : ''}
+                  onChange={event => loadInvoiceSummary(event.target.value)}>
+                  <option value="">-- Select a custom modification --</option>
+                  {modificationPendingJobs.map(job => (
+                    <option key={job.jobCardId} value={job.jobCardId}>
+                      {job.registrationNo} — {job.customerName || 'Unknown customer'} ({job.jobCardId})
+                    </option>
+                  ))}
+                </select>
+              </div>
             </div>
             {invoiceWork.pending.length === 0 && <p className="om-muted">No completed jobs are awaiting payment.</p>}
 

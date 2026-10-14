@@ -9,11 +9,12 @@ test('office bills extra work and moves paid jobs out of the pending selector', 
   let savedCharges = [];
   let paymentRecorded = false;
   const pendingJob = { jobCardId: 'JOB_PENDING', registrationNo: 'CA-9604', customerName: 'Test Customer', stageName: 'Stage 1' };
+  const modificationJob = { jobCardId: 'JOB_MOD', registrationNo: 'CA-9604', customerName: 'Test Customer', stageName: 'Custom Mod', billType: 'CUSTOM_MODIFICATION' };
   const paidJob = { jobCardId: 'JOB_PAID', registrationNo: 'ABC-1234', customerName: 'Paid Customer', invoiceId: 'INV_PAID', grandTotal: 700 };
 
   axios.get.mockImplementation(url => {
     if (url.endsWith('/invoice-work')) return Promise.resolve({ data: {
-      success: true, pending: paymentRecorded ? [] : [pendingJob],
+      success: true, pending: paymentRecorded ? [modificationJob] : [pendingJob, modificationJob],
       completed: paymentRecorded ? [paidJob, { ...pendingJob, invoiceId: 'INV_JOB_PENDING', grandTotal: 1500 }] : [paidJob]
     } });
     if (url.endsWith('/payment-history')) return Promise.resolve({ data: { success: true, payments: [
@@ -40,9 +41,12 @@ test('office bills extra work and moves paid jobs out of the pending selector', 
 
   render(<OfficeDashboard user={{ userId: 'U004', name: 'Office User' }} />);
   fireEvent.click(screen.getByRole('button', { name: 'Invoices & Payments' }));
-  const selector = await screen.findByLabelText('Vehicle and customer');
-  await screen.findByRole('option', { name: /CA-9604 — Test Customer/ });
+  const selector = await screen.findByLabelText('General repair bill');
+  const modificationSelector = screen.getByLabelText('Custom modification bill');
+  await waitFor(() => expect(selector.querySelector('option[value="JOB_PENDING"]')).toBeTruthy());
   expect(selector.querySelector('option[value="JOB_PAID"]')).toBeNull();
+  expect(selector.querySelector('option[value="JOB_MOD"]')).toBeNull();
+  expect(modificationSelector.querySelector('option[value="JOB_MOD"]')).toBeTruthy();
   expect(screen.queryByRole('button', { name: /Print Invoice/ })).toBeNull();
   expect(screen.getByRole('heading', { name: 'Completed & Paid Work' })).toBeTruthy();
   expect(screen.getByRole('heading', { name: 'Payment History' })).toBeTruthy();

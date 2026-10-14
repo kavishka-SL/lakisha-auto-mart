@@ -144,6 +144,9 @@ app.get('/api/om/invoice-work', async (req, res) => {
   try {
     const [rows] = await db.promise().query(`
       SELECT j.jobCardId, j.stageName, j.status AS jobStatus, j.createdDate,
+             CASE WHEN LOWER(TRIM(j.stageName)) = 'custom mod'
+                    OR COALESCE(sr.isCustomModification, 0) = 1
+                  THEN 'CUSTOM_MODIFICATION' ELSE 'GENERAL' END AS billType,
              v.registrationNo, c.name AS customerName,
              paid.invoiceId, paid.grandTotal, paid.issueDate
       FROM job_card j
