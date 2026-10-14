@@ -25,25 +25,25 @@ The `package.json` and `package-lock.json` files in **both** app folders list th
 
 1. Start your MySQL server. MySQL Workbench is the database client; it does not replace the server. This laptop already has `auto_care_db`, so do **not** import the schema again.
 2. Check `backend/.env`: `DB_HOST=localhost`, `DB_PORT=3306`, `DB_USER=root`, `DB_NAME=auto_care_db`, and your own `DB_PASSWORD`. Keep this file private.
-3. Open two PowerShell windows. In the first, run:
+3. Double-click `Start-Lakisha.cmd` in the project folder. It starts the backend and frontend in separate windows, waits for both, and opens <http://localhost:3000>. It detects running instances so a second click does not start another WhatsApp browser on the same saved session. Keep the two app windows open while using the system.
+
+If you prefer to start each part manually, open two PowerShell windows. In the first, run:
 
    ```powershell
    cd "D:\DSE 25.3\Dip Final Project\Final System\lakisha-auto-mart\backend"
-   npm ci
-   npm start
+   npm.cmd start
    ```
 
-4. In the second, run:
+In the second, run:
 
    ```powershell
    cd "D:\DSE 25.3\Dip Final Project\Final System\lakisha-auto-mart\frontend"
-   npm ci
-   npm start
+   npm.cmd start
    ```
 
-5. Open <http://localhost:3000>. Check <http://localhost:5000/api/health> if the page says it cannot connect to the server. Leave MySQL and both terminals running while using the app. `npm ci` is needed only after downloading the project or changing dependencies; later starts need only `npm start` in each folder.
+Open <http://localhost:3000>. Check <http://localhost:5000/api/health> if the page says it cannot connect to the server. `npm.cmd ci` is needed only after downloading the project or changing dependencies; later starts need only `npm.cmd start` in each folder.
 
-If PowerShell does not recognise `npm` immediately after installing Node.js, close and reopen PowerShell, then check `node --version` and `npm --version`.
+PowerShell may block `npm.ps1` because of its script policy. Use `npm.cmd` as shown; the one-click launcher handles this too. The launcher uses a process-scoped PowerShell policy and does not change your Windows security setting.
 
 ## Set up a fresh clone
 
@@ -74,6 +74,8 @@ Set `ENABLE_WHATSAPP=true` in `backend/.env` and restart the backend. Visit <htt
 - `disabled`: set `ENABLE_WHATSAPP=true` and restart the backend.
 
 The linked session is saved under `backend/.wwebjs_auth/`. Keep that folder locally; it is ignored by Git. A new computer needs its own one-time QR scan. Restarting the backend normally reuses its saved session, provided the phone still lists the linked device. WhatsApp messages are sent only while the backend and WhatsApp connection are running. This feature uses WhatsApp, not mobile-network SMS.
+
+Double-click `Check-WhatsApp.cmd` to check the connection. If the status is `scan-qr`, it opens `backend/whatsapp-qr.svg`. On your phone, go to WhatsApp > Linked devices > Link a device and scan the image. If the QR has expired, run the checker again after the backend refreshes it. If the status is `ready`, no scan is needed. Keep only one backend instance running, because two instances cannot use the same saved WhatsApp browser session.
 
 ## Reports and limitations
 
