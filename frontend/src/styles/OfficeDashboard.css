@@ -21,6 +21,35 @@
   font-size: 22px;
 }
 
+.om-stock-alert {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
+  padding: 16px 20px;
+  margin-bottom: 20px;
+  border: 1px solid #ef4444;
+  border-radius: 8px;
+  background: #fef2f2;
+  color: #991b1b;
+}
+
+.om-stock-alert p { margin: 6px 0 0; }
+
+.om-stock-alert-button {
+  flex-shrink: 0;
+  padding: 10px 14px;
+  border: 0;
+  border-radius: 5px;
+  background: #b91c1c;
+  color: #fff;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.om-low-stock-row { background: #fff7f7; }
+.om-low-stock-label { margin-left: 8px; color: #b91c1c; font-weight: 700; }
+
 .om-user-info {
   display: flex;
   align-items: center;
@@ -302,6 +331,7 @@
 .om-invoice-notice { color: #166534; background: #f0fdf4; }
 
 @media (max-width: 760px) {
+  .om-stock-alert { align-items: flex-start; flex-direction: column; }
   .om-inventory-layout { grid-template-columns: 1fr; }
   .om-charge-row { grid-template-columns: 1fr; }
   .om-invoice-tax { flex-wrap: wrap; }

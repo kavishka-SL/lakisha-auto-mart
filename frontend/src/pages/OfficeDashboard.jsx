@@ -45,6 +45,7 @@ export default function OfficeDashboard({ user, setUser }) {
 
   const [partForm, setPartForm] = useState({ itemName: '', unitPrice: '', quantityInStock: '', reorderLevel: 10 });
   const [spareParts, setSpareParts] = useState([]);
+  const lowStockParts = spareParts.filter(part => Number(part.isActive) === 1 && Number(part.quantityInStock) <= Number(part.reorderLevel));
   const [editingPartId, setEditingPartId] = useState(null);
   const [partError, setPartError] = useState('');
   const [partNotice, setPartNotice] = useState('');
@@ -228,9 +229,16 @@ export default function OfficeDashboard({ user, setUser }) {
       const response = await axios.get(`${API_BASE}/spare-parts`);
       setSpareParts(response.data.parts || []);
       setPartError('');
-    } catch (error) { setPartError(error.response?.data?.error || 'Could not load spare parts.'); }
+    } catch (error) {
+      setSpareParts([]);
+      setPartError(error.response?.data?.error || 'Could not load spare parts.');
+    }
   }, []);
-  useEffect(() => { if (activeTab === 'inventory') fetchSpareParts(); }, [activeTab, fetchSpareParts]);
+  useEffect(() => {
+    fetchSpareParts();
+    const interval = setInterval(fetchSpareParts, 30000);
+    return () => clearInterval(interval);
+  }, [fetchSpareParts]);
   const resetPartForm = () => {
     setEditingPartId(null);
     setPartForm({ itemName: '', unitPrice: '', quantityInStock: '', reorderLevel: 10 });
@@ -327,6 +335,16 @@ export default function OfficeDashboard({ user, setUser }) {
           <button className="om-logout-btn" onClick={handleLogout}>LOGOUT</button>
         </div>
       </div>
+
+      {lowStockParts.length > 0 && (
+        <div className="om-stock-alert om-no-print" role="alert">
+          <div>
+            <strong>Restock alert: {lowStockParts.length} spare {lowStockParts.length === 1 ? 'part is' : 'parts are'} at or below the reorder level.</strong>
+            <p>{lowStockParts.map(part => `${part.itemName} (${part.quantityInStock} in stock; reorder at ${part.reorderLevel})`).join(' · ')}</p>
+          </div>
+          <button className="om-stock-alert-button" type="button" onClick={() => setActiveTab('inventory')}>View Spare Parts</button>
+        </div>
+      )}
 
       <div className="om-nav-tabs om-no-print">
         <button className={`om-tab-btn ${activeTab === 'register-cust' ? 'active' : ''}`} onClick={() => setActiveTab('register-cust')}>Customer Registration</button>
@@ -549,8 +567,8 @@ export default function OfficeDashboard({ user, setUser }) {
               <table className="om-table">
                 <thead><tr><th>Name</th><th>Price</th><th>Stock</th><th>Reorder At</th><th>Status</th><th>Actions</th></tr></thead>
                 <tbody>
-                  {spareParts.map(part => <tr key={part.itemId}>
-                    <td>{part.itemName}</td><td>Rs. {formatMoney(part.unitPrice)}</td><td>{part.quantityInStock}</td><td>{part.reorderLevel}</td>
+                  {spareParts.map(part => <tr key={part.itemId} className={Number(part.isActive) === 1 && Number(part.quantityInStock) <= Number(part.reorderLevel) ? 'om-low-stock-row' : ''}>
+                    <td>{part.itemName}</td><td>Rs. {formatMoney(part.unitPrice)}</td><td>{part.quantityInStock}{Number(part.isActive) === 1 && Number(part.quantityInStock) <= Number(part.reorderLevel) && <span className="om-low-stock-label">Low stock</span>}</td><td>{part.reorderLevel}</td>
                     <td>{part.isActive ? 'Active' : 'Archived'}</td>
                     <td className="om-inventory-actions">
                       {part.isActive && <button className="om-btn" type="button" onClick={() => {

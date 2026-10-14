@@ -6,8 +6,7 @@ module.exports = function registerManagerRoutes(app) {
 app.get('/api/manager/dashboard-stats', (req, res) => {
     const stats = {
         activeJobs: 0,
-        pendingApprovals: 0,
-        lowStockItems: 0
+        pendingApprovals: 0
     };
 
     db.query("SELECT COUNT(*) AS count FROM job_card WHERE status = 'IN_PROGRESS'", (err1, res1) => {
@@ -18,12 +17,7 @@ app.get('/api/manager/dashboard-stats', (req, res) => {
             if (err2) return res.status(500).json({ error: err2.message });
             stats.pendingApprovals = res2[0].count;
 
-            db.query("SELECT COUNT(*) AS count FROM inventory_item WHERE isActive = 1 AND quantityInStock <= reorderLevel", (err3, res3) => {
-                if (err3) return res.status(500).json({ error: err3.message });
-                stats.lowStockItems = res3[0].count;
-
-                res.json(stats);
-            });
+            res.json(stats);
         });
     });
 });
@@ -359,8 +353,7 @@ app.get('/api/manager/business-reports', (req, res) => {
         SELECT
             COUNT(*) as totalCategories,
             SUM(quantityInStock) as totalItems,
-            SUM(quantityInStock * unitPrice) as totalStockValue,
-            SUM(CASE WHEN quantityInStock <= reorderLevel THEN 1 ELSE 0 END) as lowStockCount
+            SUM(quantityInStock * unitPrice) as totalStockValue
         FROM inventory_item
         WHERE isActive = 1
     `;

@@ -5,13 +5,12 @@ import axios from 'axios';
 import '../styles/ManagerDashboard.css';
 
 const formatLkr = value => Number(value || 0).toLocaleString('en-LK', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-const needsRestock = item => Number(item.quantityInStock) <= Number(item.reorderLevel);
 
 const ManagerDashboard = ({ user }) => {
 
     const [activeTab, setActiveTab] = useState('dashboard');
 
-const [stats, setStats] = useState({ activeJobs: 0, pendingApprovals: 0, lowStockItems: 0 });
+const [stats, setStats] = useState({ activeJobs: 0, pendingApprovals: 0 });
 
 const [inventory, setInventory] = useState([]);
 
@@ -410,18 +409,6 @@ return (
 
                         <h2>Manager Business Dashboard</h2>
 
-                        {stats.lowStockItems > 0 && (
-
-                            <div className="critical-alert-box">
-
-                                <div className="red-light-indicator"></div>
-
-                                <span>RESTOCK ALERT: {stats.lowStockItems} spare parts are at or below their reorder level. Please check the Inventory tab.</span>
-
-                            </div>
-
-                        )}
-
                         <div className="stats-card-container">
 
                             <div className="stat-card">
@@ -437,14 +424,6 @@ return (
                                 <h4>Pending Approvals</h4>
 
                                 <h1>{stats.pendingApprovals}</h1>
-
-                            </div>
-
-                            <div className="stat-card">
-
-                                <h4>Items to Restock</h4>
-
-                                <h1 style={{ color: stats.lowStockItems > 0 ? '#dc2626' : '#2c3e50' }}>{stats.lowStockItems}</h1>
 
                             </div>
 
@@ -480,8 +459,6 @@ return (
 
                                     <tr>
 
-                                        <th>Status</th>
-
                                         <th>Item ID</th>
 
                                         <th>Item Name</th>
@@ -499,21 +476,7 @@ return (
 
                                     {inventory.length > 0 ? inventory.map(item => (
 
-                                        <tr key={item.itemId} style={{ backgroundColor: needsRestock(item) ? '#fff5f5' : 'transparent' }}>
-
-                                            <td>
-
-                                                {needsRestock(item) ? (
-
-                                                    <span className="red-light-indicator" title="At or below reorder level"></span>
-
-                                                ) : (
-
-                                                    <span className="green-light-indicator" title="Stock Available"></span>
-
-                                                )}
-
-                                            </td>
+                                        <tr key={item.itemId}>
 
                                             <td><b>{item.itemId}</b></td>
 
@@ -521,7 +484,7 @@ return (
 
                                             <td>Rs. {Number(item.unitPrice).toLocaleString('en-LK')}</td>
 
-                                            <td style={{ color: needsRestock(item) ? '#dc2626' : '#334155', fontWeight: 'bold', fontSize: '16px' }}>
+                                            <td>
 
                                                 {item.quantityInStock}
 
@@ -530,7 +493,7 @@ return (
 
                                         </tr>
 
-                                    )) : <tr><td colSpan="6" style={{textAlign: 'center', color: '#888'}}>No items found in inventory.</td></tr>}
+                                    )) : <tr><td colSpan="5" style={{textAlign: 'center', color: '#888'}}>No items found in inventory.</td></tr>}
 
                                 </tbody>
 
@@ -858,14 +821,6 @@ return (
                                     <span>Total Items in Stock</span>
 
                                     <span className="report-stat-value">{businessReports.inventorySummary.totalItems || 0} Units</span>
-
-                                </div>
-
-                                <div className="report-stat-row">
-
-                                    <span>Items Need Restocking</span>
-
-                                    <span className="report-stat-value" style={{color: '#dc2626'}}>{businessReports.inventorySummary.lowStockCount || 0} Items</span>
 
                                 </div>
 
