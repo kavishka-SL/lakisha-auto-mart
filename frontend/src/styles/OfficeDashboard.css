@@ -279,7 +279,6 @@
 .om-invoice-sections h4 { margin: 24px 0 8px; }
 .om-muted { color: #64748b; }
 .om-table-scroll { overflow-x: auto; }
-.om-pending-bill-selects { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
 
 .om-charge-row {
   display: grid;
@@ -333,7 +332,6 @@
 
 @media (max-width: 760px) {
   .om-stock-alert { align-items: flex-start; flex-direction: column; }
-  .om-pending-bill-selects { grid-template-columns: 1fr; }
   .om-inventory-layout { grid-template-columns: 1fr; }
   .om-charge-row { grid-template-columns: 1fr; }
   .om-invoice-tax { flex-wrap: wrap; }

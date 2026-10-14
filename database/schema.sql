@@ -238,6 +238,20 @@ CREATE TABLE `invoice` (
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
+-- Table structure for table `invoice_job`
+--
+
+DROP TABLE IF EXISTS `invoice_job`;
+CREATE TABLE `invoice_job` (
+  `jobCardId` varchar(50) NOT NULL,
+  `invoiceId` varchar(50) NOT NULL,
+  PRIMARY KEY (`jobCardId`),
+  KEY `invoice_job_invoice_idx` (`invoiceId`),
+  CONSTRAINT `invoice_job_job_fk` FOREIGN KEY (`jobCardId`) REFERENCES `job_card` (`jobCardId`) ON DELETE CASCADE,
+  CONSTRAINT `invoice_job_invoice_fk` FOREIGN KEY (`invoiceId`) REFERENCES `invoice` (`invoiceId`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
+--
 -- Table structure for table `invoice_charge`
 --
 

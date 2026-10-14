@@ -99,7 +99,8 @@ app.get('/api/customer/invoice/:jobCardId', (req, res) => {
   const sql = `
     SELECT i.invoiceId, i.issueDate, i.netAmount, i.laborCharge, i.workshopFee,
            (SELECT COALESCE(SUM(ic.amount), 0) FROM invoice_charge ic
-            WHERE ic.jobCardId = i.jobCardId AND ic.chargeType IN ('CUSTOM_MODIFICATION', 'OTHER')) AS otherCharges,
+            JOIN invoice_job linked ON linked.jobCardId = ic.jobCardId
+            WHERE linked.invoiceId = i.invoiceId AND ic.chargeType IN ('CUSTOM_MODIFICATION', 'OTHER')) AS otherCharges,
            i.taxAmount, i.grandTotal, i.paymentStatus, j.status AS jobStatus
     FROM invoice i
     JOIN job_card j ON i.jobCardId = j.jobCardId

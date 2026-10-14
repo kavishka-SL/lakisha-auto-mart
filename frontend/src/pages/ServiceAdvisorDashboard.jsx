@@ -176,7 +176,7 @@ export default function ServiceAdvisorDashboard({ user, onLogout }) {
       fetchJobProgress();
       fetchRequests();
       fetchReassignModsData();
-    } catch (err) { alert('Quality Check Failed!'); }
+    } catch (err) { alert(err.response?.data?.error || 'Quality check failed.'); }
   };
 
   const handleModApproveSubmit = async (e) => {

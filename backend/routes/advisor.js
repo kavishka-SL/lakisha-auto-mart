@@ -209,20 +209,56 @@ app.get('/api/sa/job-progress', (req, res) => {
     });
 });
 
-app.post('/api/sa/quality-check', (req, res) => {
+app.post('/api/sa/quality-check', async (req, res) => {
     const { requestId, qualityCheckStatus, qualityRemarks, releaseApproved } = req.body;
-
-    const sql = "UPDATE service_request SET qualityCheckStatus = ?, qualityRemarks = ? WHERE requestId = ?";
-    db.query(sql, [qualityCheckStatus, qualityRemarks, requestId], (err) => {
-        if (err) return res.status(500).json({ success: false, error: err.message });
-
-        if (releaseApproved && qualityCheckStatus === 'PASS') {
-            db.query("UPDATE service_request SET status = 'COMPLETED' WHERE requestId = ?", [requestId]);
-            db.query("UPDATE vehicle v JOIN service_request sr ON v.vehicleId = sr.vehicleId SET v.status = 'RELEASED' WHERE sr.requestId = ?", [requestId]);
-            db.query("UPDATE job_card SET status = 'COMPLETED' WHERE requestId = ?", [requestId]);
+    if (!requestId || !['PASS', 'FAIL'].includes(qualityCheckStatus) ||
+        (releaseApproved && qualityCheckStatus !== 'PASS')) {
+        return res.status(400).json({ success: false, error: 'Select a request and a valid quality status. Release requires a pass.' });
+    }
+    let connection;
+    try {
+        connection = await db.promise().getConnection();
+        await connection.beginTransaction();
+        const [[request]] = await connection.query(
+            'SELECT vehicleId, isCustomModification, modApprovalStatus FROM service_request WHERE requestId = ? FOR UPDATE', [requestId]
+        );
+        if (!request) {
+            await connection.rollback();
+            return res.status(404).json({ success: false, error: 'Service request not found.' });
         }
-        res.json({ success: true, message: "Quality Check & Release Updated Successfully!" });
-    });
+        if (releaseApproved) {
+            const [[work]] = await connection.query(`
+                SELECT COUNT(*) AS jobCount,
+                       SUM(CASE WHEN UPPER(status) = 'COMPLETED' THEN 1 ELSE 0 END) AS completedCount
+                FROM job_card WHERE requestId = ? AND UPPER(status) NOT IN ('REJECTED', 'CANCELLED')`, [requestId]);
+            const [[pending]] = await connection.query(`
+                SELECT COUNT(*) AS count FROM custom_modification_request cm
+                JOIN job_card j ON j.jobCardId = cm.jobCardId
+                WHERE j.requestId = ? AND UPPER(cm.status) = 'PENDING'`, [requestId]);
+            if (!work.jobCount || Number(work.completedCount) !== Number(work.jobCount) || pending.count ||
+                (request.isCustomModification && String(request.modApprovalStatus).toUpperCase() === 'PENDING')) {
+                await connection.rollback();
+                return res.status(409).json({ success: false,
+                    error: 'Finish all jobs and handle pending modification requests before approving release.' });
+            }
+        }
+        await connection.query(
+            `UPDATE service_request SET qualityCheckStatus = ?, qualityRemarks = ?,
+             status = CASE WHEN ? THEN 'COMPLETED' ELSE status END WHERE requestId = ?`,
+            [qualityCheckStatus, qualityRemarks || null, Boolean(releaseApproved), requestId]
+        );
+        if (releaseApproved) {
+            await connection.query("UPDATE vehicle SET status = 'RELEASED' WHERE vehicleId = ?", [request.vehicleId]);
+        }
+        await connection.commit();
+        res.json({ success: true, message: 'Quality check and release status updated.' });
+    } catch (error) {
+        if (connection) await connection.rollback();
+        console.error('Quality check failed:', error);
+        res.status(500).json({ success: false, error: 'Could not update the quality check.' });
+    } finally {
+        if (connection) connection.release();
+    }
 });
 
 app.post('/api/sa/approve-mod', (req, res) => {

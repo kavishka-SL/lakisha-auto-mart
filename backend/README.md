@@ -46,7 +46,7 @@ Run `migrations/001_customer_vehicle_pass.sql` once after importing the original
 
 ## Invoices and payments
 
-Run `migrations/002_invoice_charges.sql` once on an existing database. It adds the `invoice_charge` table and does not alter existing invoice or payment rows. Office Management selects a completed job awaiting payment, reviews parts, and saves any labor, workshop, custom modification, or other charges. The server calculates the amount and tax again when recording payment. Paid jobs move to Completed & Paid Work; individual payment records appear in Payment History. Invoice downloads are Word documents. A card option records a payment already completed outside this system; it does not charge a card.
+Run `migrations/002_invoice_charges.sql` once on an existing database. It adds the `invoice_charge` table and does not alter existing invoice or payment rows. Run `migrations/007_invoice_visit.sql` once to link each invoiced job to its invoice. It preserves existing payments and links each older paid invoice to its original job. Office Management selects one released service visit, reviews the repair and modification work together, and adds labor, workshop, custom modification, or other charges before payment. A visit with an earlier paid invoice shows only its remaining unpaid work as an additional bill. The server calculates the amount and tax again when recording payment. Paid visits move to Completed & Paid Work; individual payment records appear in Payment History. Invoice downloads are Word documents. A card option records a payment already completed outside this system; it does not charge a card.
 
 ## Customer feedback
 

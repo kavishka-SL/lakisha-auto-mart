@@ -64,6 +64,8 @@ PowerShell may block `npm.ps1` because of its script policy. Use `npm.cmd` as sh
 
 The schema file contains no live records. The old `new3.sql` dump and local backup contain private data and are intentionally **not** part of this repository. The Vehicle ID `VID_DEMO_001` belongs only to the current laptop database; it will not exist in a fresh clone.
 
+For a database created before the combined-visit invoice change, run `backend/migrations/007_invoice_visit.sql` once in MySQL Workbench. It adds `invoice_job` and links existing paid invoices without changing their amounts. On this laptop, the migration has already been applied.
+
 ## WhatsApp
 
 Set `ENABLE_WHATSAPP=true` in `backend/.env` and restart the backend. Visit <http://localhost:5000/api/whatsapp/status>:

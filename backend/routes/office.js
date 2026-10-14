@@ -5,10 +5,16 @@ const rootDir = path.join(__dirname, '..');
 const { randomBytes, randomInt, randomUUID } = require('crypto');
 const { hashPassword } = require('../passwords');
 const { calculateInvoice, validateCharges } = require('../invoicePricing');
+const { groupInvoiceWork, visitReady } = require('../invoiceVisit');
 
 module.exports = function registerOfficeRoutes(app, { sendWhatsAppMessage }) {
 const invoiceJobSql = `
-  SELECT j.jobCardId, j.status AS jobStatus, j.createdDate,
+  SELECT j.jobCardId, j.requestId, j.status AS jobStatus, j.createdDate,
+         sr.status AS requestStatus, sr.qualityCheckStatus,
+         ((CASE WHEN sr.isCustomModification = 1 AND UPPER(sr.modApprovalStatus) = 'PENDING' THEN 1 ELSE 0 END)
+          + (SELECT COUNT(*) FROM custom_modification_request cm
+          JOIN job_card source ON source.jobCardId = cm.jobCardId
+          WHERE source.requestId = j.requestId AND UPPER(cm.status) = 'PENDING')) AS pendingModifications,
          v.registrationNo, v.make, v.model, c.name AS customerName, c.phone
   FROM job_card j
   LEFT JOIN service_request sr ON sr.requestId = j.requestId
@@ -18,18 +24,44 @@ const invoiceJobSql = `
 `;
 
 async function getInvoiceDetails(connection, jobCardId) {
-  const [[job], [parts], [charges], [invoices]] = await Promise.all([
+  const [[jobRows], [invoices]] = await Promise.all([
     connection.query(invoiceJobSql, [jobCardId]),
-    connection.query(`SELECT i.itemName, ji.quantityUsed, ji.pricePerUnit
-                      FROM job_item ji JOIN inventory_item i ON i.itemId = ji.itemId
-                      WHERE ji.jobCardId = ? ORDER BY i.itemName`, [jobCardId]),
-    connection.query(`SELECT chargeId, chargeType, description, amount
-                      FROM invoice_charge WHERE jobCardId = ? ORDER BY chargeId`, [jobCardId]),
     connection.query(`SELECT invoiceId, issueDate, netAmount, laborCharge, workshopFee,
                              taxAmount, grandTotal, paymentStatus
                       FROM invoice WHERE jobCardId = ? ORDER BY issueDate DESC, invoiceId DESC`, [jobCardId])
   ]);
-  return { job: job[0], parts, charges, invoices };
+  const job = jobRows[0];
+  if (!job) return { job: null, jobs: [], parts: [], charges: [], invoices: [], previouslyPaid: 0 };
+
+  const [visitJobs] = await connection.query(`
+    SELECT j.jobCardId, j.stageName, j.status AS jobStatus, j.createdDate,
+           paid.invoiceId AS paidInvoiceId,
+           paid.grandTotal AS paidTotal
+    FROM job_card j
+    LEFT JOIN invoice_job billed ON billed.jobCardId = j.jobCardId
+    LEFT JOIN invoice paid ON paid.invoiceId = billed.invoiceId AND UPPER(paid.paymentStatus) = 'PAID'
+    WHERE ${job.requestId ? 'j.requestId = ?' : 'j.jobCardId = ?'}
+    ORDER BY j.createdDate, j.jobCardId
+  `, [job.requestId || jobCardId]);
+  const paid = paidInvoice(invoices);
+  const jobs = visitJobs.filter(item =>
+    !['REJECTED', 'CANCELLED'].includes(String(item.jobStatus).toUpperCase()) &&
+    (paid ? item.paidInvoiceId === paid.invoiceId : !item.paidInvoiceId)
+  );
+  const jobIds = jobs.map(item => item.jobCardId);
+  const [[parts], [charges]] = jobIds.length ? await Promise.all([
+    connection.query(`SELECT ji.jobCardId, j.stageName, i.itemName, ji.quantityUsed, ji.pricePerUnit
+                      FROM job_item ji JOIN inventory_item i ON i.itemId = ji.itemId
+                      JOIN job_card j ON j.jobCardId = ji.jobCardId
+                      WHERE ji.jobCardId IN (?) ORDER BY j.createdDate, i.itemName`, [jobIds]),
+    connection.query(`SELECT chargeId, jobCardId, chargeType, description, amount
+                      FROM invoice_charge WHERE jobCardId IN (?) ORDER BY chargeId`, [jobIds])
+  ]) : [[[]], [[]]];
+  const priorInvoices = new Map(visitJobs
+    .filter(item => item.paidInvoiceId && item.paidInvoiceId !== paid?.invoiceId)
+    .map(item => [item.paidInvoiceId, Number(item.paidTotal || 0)]));
+  const previouslyPaid = [...priorInvoices.values()].reduce((sum, total) => sum + total, 0);
+  return { job, jobs, parts, charges, invoices, previouslyPaid };
 }
 
 function paidInvoice(invoices) {
@@ -143,28 +175,26 @@ app.get('/api/om/customer-history/:customerId', (req, res) => {
 app.get('/api/om/invoice-work', async (req, res) => {
   try {
     const [rows] = await db.promise().query(`
-      SELECT j.jobCardId, j.stageName, j.status AS jobStatus, j.createdDate,
-             CASE WHEN LOWER(TRIM(j.stageName)) = 'custom mod'
-                    OR COALESCE(sr.isCustomModification, 0) = 1
-                  THEN 'CUSTOM_MODIFICATION' ELSE 'GENERAL' END AS billType,
+      SELECT j.jobCardId, j.requestId, j.stageName, j.status AS jobStatus, j.createdDate,
+             sr.status AS requestStatus, sr.qualityCheckStatus,
+             ((CASE WHEN sr.isCustomModification = 1 AND UPPER(sr.modApprovalStatus) = 'PENDING' THEN 1 ELSE 0 END)
+              + (SELECT COUNT(*) FROM custom_modification_request cm
+              JOIN job_card source ON source.jobCardId = cm.jobCardId
+              WHERE source.requestId = j.requestId AND UPPER(cm.status) = 'PENDING')) AS pendingModifications,
              v.registrationNo, c.name AS customerName,
-             paid.invoiceId, paid.grandTotal, paid.issueDate
+             paid.invoiceId, paid.jobCardId AS billingJobId, paid.grandTotal, paid.issueDate
       FROM job_card j
       LEFT JOIN service_request sr ON sr.requestId = j.requestId
       JOIN vehicle v ON v.vehicleId = COALESCE(j.vehicleId, sr.vehicleId)
       LEFT JOIN customer c ON c.customerId = v.customerId
-      LEFT JOIN invoice paid ON paid.invoiceId = (
-        SELECT i.invoiceId FROM invoice i
-        WHERE i.jobCardId = j.jobCardId AND UPPER(i.paymentStatus) = 'PAID'
-        ORDER BY i.issueDate DESC, i.invoiceId DESC LIMIT 1
-      )
-      WHERE UPPER(j.status) = 'COMPLETED' OR paid.invoiceId IS NOT NULL
-      ORDER BY j.createdDate DESC
+      LEFT JOIN invoice_job billed ON billed.jobCardId = j.jobCardId
+      LEFT JOIN invoice paid ON paid.invoiceId = billed.invoiceId AND UPPER(paid.paymentStatus) = 'PAID'
+      WHERE UPPER(j.status) NOT IN ('REJECTED', 'CANCELLED') OR paid.invoiceId IS NOT NULL
+      ORDER BY j.createdDate, j.jobCardId
     `);
     res.json({
       success: true,
-      pending: rows.filter(row => !row.invoiceId),
-      completed: rows.filter(row => row.invoiceId)
+      ...groupInvoiceWork(rows)
     });
   } catch (error) {
     console.error('Could not load invoice work:', error);
@@ -194,15 +224,18 @@ app.get('/api/om/payment-history', async (req, res) => {
 
 app.get('/api/om/invoice-summary/:jobCardId', async (req, res) => {
   try {
-    const { job, parts, charges, invoices } = await getInvoiceDetails(db.promise(), req.params.jobCardId);
+    const { job, jobs, parts, charges, invoices, previouslyPaid } = await getInvoiceDetails(db.promise(), req.params.jobCardId);
     if (!job) return res.status(404).json({ success: false, error: 'Job card not found.' });
     const paid = paidInvoice(invoices);
-    if (String(job.jobStatus).toUpperCase() !== 'COMPLETED' && !paid) {
-      return res.status(409).json({ success: false, error: 'This job is not complete yet.' });
+    if (!paid && !visitReady(job, jobs)) {
+      return res.status(409).json({ success: false, error: 'Complete all work and pass the release check before preparing payment.' });
+    }
+    if (!paid && jobs[0]?.jobCardId !== job.jobCardId) {
+      return res.status(409).json({ success: false, error: 'Select this visit from Pending Payments.' });
     }
     const totals = calculateInvoice(parts, charges, 0);
     res.json({
-      success: true, job, parts, charges, paid: Boolean(paid),
+      success: true, job, jobs, parts, charges, previouslyPaid, paid: Boolean(paid),
       invoice: paid || null,
       totals: paid ? { ...totals, partsSubtotal: Number(paid.netAmount),
         laborCharge: Number(paid.laborCharge), workshopFee: Number(paid.workshopFee),
@@ -222,20 +255,20 @@ app.put('/api/om/invoice-charges/:jobCardId', async (req, res) => {
   try {
     connection = await db.promise().getConnection();
     await connection.beginTransaction();
-    const [[job]] = await connection.query('SELECT status FROM job_card WHERE jobCardId = ? FOR UPDATE', [req.params.jobCardId]);
-    if (!job) { await connection.rollback(); return res.status(404).json({ success: false, error: 'Job card not found.' }); }
-    if (String(job.status).toUpperCase() !== 'COMPLETED') {
+    const [[target]] = await connection.query('SELECT requestId FROM job_card WHERE jobCardId = ?', [req.params.jobCardId]);
+    if (!target) { await connection.rollback(); return res.status(404).json({ success: false, error: 'Job card not found.' }); }
+    if (target.requestId) await connection.query('SELECT requestId FROM service_request WHERE requestId = ? FOR UPDATE', [target.requestId]);
+    await connection.query('SELECT jobCardId FROM job_card WHERE jobCardId = ? FOR UPDATE', [req.params.jobCardId]);
+    const details = await getInvoiceDetails(connection, req.params.jobCardId);
+    if (!visitReady(details.job, details.jobs)) {
       await connection.rollback();
-      return res.status(409).json({ success: false, error: 'Complete the job before adding invoice charges.' });
+      return res.status(409).json({ success: false, error: 'Complete all work and pass the release check before adding charges.' });
     }
-    const [paid] = await connection.query(
-      "SELECT invoiceId FROM invoice WHERE jobCardId = ? AND UPPER(paymentStatus) = 'PAID' LIMIT 1", [req.params.jobCardId]
-    );
-    if (paid.length) {
+    if (paidInvoice(details.invoices) || details.jobs[0]?.jobCardId !== req.params.jobCardId) {
       await connection.rollback();
-      return res.status(409).json({ success: false, error: 'Paid invoice charges cannot be changed.' });
+      return res.status(409).json({ success: false, error: 'This visit is already paid or another job is its billing record.' });
     }
-    await connection.query('DELETE FROM invoice_charge WHERE jobCardId = ?', [req.params.jobCardId]);
+    await connection.query('DELETE FROM invoice_charge WHERE jobCardId IN (?)', [details.jobs.map(item => item.jobCardId)]);
     for (const charge of charges) {
       await connection.query(
         'INSERT INTO invoice_charge (jobCardId, chargeType, description, amount) VALUES (?, ?, ?, ?)',
@@ -265,16 +298,18 @@ app.post('/api/om/process-payment', async (req, res) => {
   try {
     connection = await db.promise().getConnection();
     await connection.beginTransaction();
-    const [[job]] = await connection.query('SELECT status FROM job_card WHERE jobCardId = ? FOR UPDATE', [jobCardId]);
-    if (!job) { await connection.rollback(); return res.status(404).json({ success: false, error: 'Job card not found.' }); }
-    if (String(job.status).toUpperCase() !== 'COMPLETED') {
+    const [[target]] = await connection.query('SELECT requestId FROM job_card WHERE jobCardId = ?', [jobCardId]);
+    if (!target) { await connection.rollback(); return res.status(404).json({ success: false, error: 'Job card not found.' }); }
+    if (target.requestId) await connection.query('SELECT requestId FROM service_request WHERE requestId = ? FOR UPDATE', [target.requestId]);
+    await connection.query('SELECT jobCardId FROM job_card WHERE jobCardId = ? FOR UPDATE', [jobCardId]);
+    const { job: billingJob, jobs, parts, charges, invoices } = await getInvoiceDetails(connection, jobCardId);
+    if (!visitReady(billingJob, jobs)) {
       await connection.rollback();
-      return res.status(409).json({ success: false, error: 'Complete the job before recording payment.' });
+      return res.status(409).json({ success: false, error: 'Complete all work and pass the release check before recording payment.' });
     }
-    const { parts, charges, invoices } = await getInvoiceDetails(connection, jobCardId);
-    if (paidInvoice(invoices)) {
+    if (paidInvoice(invoices) || jobs[0]?.jobCardId !== jobCardId) {
       await connection.rollback();
-      return res.status(409).json({ success: false, error: 'This job has already been paid.' });
+      return res.status(409).json({ success: false, error: 'This visit is already paid or another job is its billing record.' });
     }
     const totals = calculateInvoice(parts, charges, taxRate);
     if (totals.grandTotal <= 0) {
@@ -298,6 +333,9 @@ app.post('/api/om/process-payment', async (req, res) => {
       'INSERT INTO payment (paymentId, amount, paymentMethod, invoiceId) VALUES (?, ?, ?, ?)',
       ['PAY_' + randomUUID(), totals.grandTotal, paymentMethod, invoiceId]
     );
+    await connection.query('INSERT INTO invoice_job (invoiceId, jobCardId) VALUES ?', [
+      jobs.map(item => [invoiceId, item.jobCardId])
+    ]);
     await connection.commit();
     res.json({ success: true, invoiceId, totals,
       message: `Payment of Rs.${totals.grandTotal.toFixed(2)} via ${paymentMethod} recorded successfully.` });
@@ -558,15 +596,15 @@ app.get('/api/om/download-carbone-invoice/:jobCardId', async (req, res) => {
     return res.status(400).json({ success: false, error: 'Invalid tax percentage.' });
   }
   try {
-    const { job, parts, charges, invoices } = await getInvoiceDetails(db.promise(), req.params.jobCardId);
+    const { job, jobs, parts, charges, invoices } = await getInvoiceDetails(db.promise(), req.params.jobCardId);
     if (!job) return res.status(404).json({ success: false, error: 'Job card not found.' });
     const paid = paidInvoice(invoices);
-    if (String(job.jobStatus).toUpperCase() !== 'COMPLETED' && !paid) {
-      return res.status(409).json({ success: false, error: 'Complete the job before preparing an invoice.' });
+    if (!paid && !visitReady(job, jobs)) {
+      return res.status(409).json({ success: false, error: 'Complete all work and pass the release check before preparing an invoice.' });
     }
     const totals = calculateInvoice(parts, charges, paid ? 0 : taxRate);
     const items = parts.map(part => ({
-      itemName: part.itemName,
+      itemName: `${part.stageName || 'Service'}: ${part.itemName}`,
       pricePerUnit: Number(part.pricePerUnit).toFixed(2),
       qty: part.quantityUsed,
       totalPrice: (Number(part.quantityUsed) * Number(part.pricePerUnit)).toFixed(2)

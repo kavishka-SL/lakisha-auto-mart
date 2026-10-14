@@ -42,8 +42,6 @@ export default function OfficeDashboard({ user, setUser }) {
   const [invoiceNotice, setInvoiceNotice] = useState('');
   const [invoiceBusy, setInvoiceBusy] = useState(false);
   const [paymentData, setPaymentData] = useState({ paymentMethod: 'CASH' });
-  const generalPendingJobs = invoiceWork.pending.filter(job => job.billType !== 'CUSTOM_MODIFICATION');
-  const modificationPendingJobs = invoiceWork.pending.filter(job => job.billType === 'CUSTOM_MODIFICATION');
 
   const [partForm, setPartForm] = useState({ itemName: '', unitPrice: '', quantityInStock: '', reorderLevel: 10 });
   const [spareParts, setSpareParts] = useState([]);
@@ -378,56 +376,48 @@ export default function OfficeDashboard({ user, setUser }) {
         <div className="om-invoice-sections">
           <div className="om-card">
             <h3>Pending Payments</h3>
-            <p className="om-muted">Select a completed, unpaid job from the appropriate bill list. Each job has its own invoice and payment.</p>
+            <p className="om-muted">Select a vehicle after all repair and modification work has passed the release check. The visit is billed together.</p>
             {invoiceError && <p className="om-invoice-error" role="alert">{invoiceError}</p>}
             {invoiceNotice && <p className="om-invoice-notice" role="status">{invoiceNotice}</p>}
-            <div className="om-pending-bill-selects">
-              <div className="om-form-group">
-                <label htmlFor="pending-general-job">General repair bill</label>
-                <select id="pending-general-job" className="om-input"
-                  value={generalPendingJobs.some(job => job.jobCardId === invoiceData.jobCardId) ? invoiceData.jobCardId : ''}
-                  onChange={event => loadInvoiceSummary(event.target.value)}>
-                  <option value="">-- Select a general repair --</option>
-                  {generalPendingJobs.map(job => (
-                    <option key={job.jobCardId} value={job.jobCardId}>
-                      {job.registrationNo} — {job.customerName || 'Unknown customer'} — {job.stageName || 'Service'} ({job.jobCardId})
-                    </option>
-                  ))}
-                </select>
-              </div>
-              <div className="om-form-group">
-                <label htmlFor="pending-modification-job">Custom modification bill</label>
-                <select id="pending-modification-job" className="om-input"
-                  value={modificationPendingJobs.some(job => job.jobCardId === invoiceData.jobCardId) ? invoiceData.jobCardId : ''}
-                  onChange={event => loadInvoiceSummary(event.target.value)}>
-                  <option value="">-- Select a custom modification --</option>
-                  {modificationPendingJobs.map(job => (
-                    <option key={job.jobCardId} value={job.jobCardId}>
-                      {job.registrationNo} — {job.customerName || 'Unknown customer'} ({job.jobCardId})
-                    </option>
-                  ))}
-                </select>
-              </div>
+            <div className="om-form-group">
+              <label htmlFor="pending-invoice-visit">Vehicle ready for payment</label>
+              <select id="pending-invoice-visit" className="om-input" value={invoiceData.jobCardId}
+                onChange={event => loadInvoiceSummary(event.target.value)}>
+                <option value="">-- Select a vehicle and customer --</option>
+                {invoiceWork.pending.map(visit => (
+                  <option key={visit.jobCardId} value={visit.jobCardId}>
+                    {visit.registrationNo} — {visit.customerName || 'Unknown customer'} — {visit.jobCount} {visit.jobCount === 1 ? 'job' : 'jobs'}
+                  </option>
+                ))}
+              </select>
             </div>
             {invoiceWork.pending.length === 0 && <p className="om-muted">No completed jobs are awaiting payment.</p>}
 
             {invoiceSummary && (
               <>
                 <h4>Invoice for {invoiceSummary.job.registrationNo} — {invoiceSummary.job.customerName || 'Customer'}</h4>
-                <p className="om-muted">Job card: {invoiceSummary.job.jobCardId}</p>
+                <p className="om-muted">Service visit: {invoiceSummary.job.requestId || invoiceSummary.job.jobCardId}</p>
+                {invoiceSummary.previouslyPaid > 0 && (
+                  <p className="om-invoice-notice" role="status">
+                    Rs. {formatMoney(invoiceSummary.previouslyPaid)} was already paid for earlier work in this visit.
+                    This invoice covers only the remaining unpaid work.
+                  </p>
+                )}
+                <h4>Work included in this invoice</h4>
+                <ul>{invoiceSummary.jobs.map(job => <li key={job.jobCardId}>{job.stageName || 'Service'} — {job.jobCardId}</li>)}</ul>
                 <h4>Spare parts</h4>
                 <div className="om-table-scroll">
                   <table className="om-table">
-                    <thead><tr><th>Part</th><th>Quantity</th><th>Unit price</th><th>Total</th></tr></thead>
+                    <thead><tr><th>Job</th><th>Part</th><th>Quantity</th><th>Unit price</th><th>Total</th></tr></thead>
                     <tbody>
                       {invoiceSummary.parts.map((part, index) => (
                         <tr key={`${part.itemName}-${index}`}>
-                          <td>{part.itemName}</td><td>{part.quantityUsed}</td>
+                          <td>{part.stageName || 'Service'}</td><td>{part.itemName}</td><td>{part.quantityUsed}</td>
                           <td>Rs. {formatMoney(part.pricePerUnit)}</td>
                           <td>Rs. {formatMoney(Number(part.quantityUsed) * Number(part.pricePerUnit))}</td>
                         </tr>
                       ))}
-                      {invoiceSummary.parts.length === 0 && <tr><td colSpan="4">No spare parts charged for this job.</td></tr>}
+                      {invoiceSummary.parts.length === 0 && <tr><td colSpan="5">No spare parts charged for this visit.</td></tr>}
                     </tbody>
                   </table>
                 </div>
