@@ -1,0 +1,308 @@
+.om-dashboard-container {
+  padding: 20px;
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  background-color: #f4f6f9;
+  min-height: 100vh;
+}
+
+.om-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background-color: #0f172a;
+  padding: 15px 25px;
+  border-radius: 8px;
+  color: #ffffff;
+  margin-bottom: 20px;
+}
+
+.om-header h2 {
+  margin: 0;
+  font-size: 22px;
+}
+
+.om-user-info {
+  display: flex;
+  align-items: center;
+  gap: 15px;
+}
+
+.om-logout-btn {
+  background-color: #ef4444;
+  color: #ffffff;
+  border: none;
+  padding: 8px 16px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-weight: bold;
+  transition: background 0.2s;
+}
+
+.om-logout-btn:hover {
+  background-color: #dc2626;
+}
+
+.om-nav-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 20px;
+}
+
+.om-tab-btn {
+  padding: 10px 16px;
+  border: none;
+  border-radius: 5px;
+  cursor: pointer;
+  background-color: #e2e8f0;
+  color: #334155;
+  font-weight: 600;
+  transition: all 0.2s;
+}
+
+.om-tab-btn.active {
+  background-color: #2563eb;
+  color: #ffffff;
+}
+
+.om-card {
+  background: #ffffff;
+  padding: 25px;
+  border-radius: 8px;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+  margin-bottom: 20px;
+}
+
+.om-form-group {
+  margin-bottom: 15px;
+}
+
+.om-form-group label {
+  display: block;
+  margin-bottom: 5px;
+  font-weight: 600;
+  color: #475569;
+}
+
+.om-input, .om-select, .om-textarea {
+  width: 100%;
+  padding: 10px;
+  border: 1px solid #cbd5e1;
+  border-radius: 5px;
+  box-sizing: border-box;
+  font-size: 14px;
+}
+
+.om-btn {
+  padding: 10px 20px;
+  background-color: #2563eb;
+  color: #ffffff;
+  border: none;
+  border-radius: 5px;
+  cursor: pointer;
+  font-weight: bold;
+}
+
+.om-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.om-btn-success { background-color: #16a34a; }
+.om-btn-warning { background-color: #d97706; }
+
+.om-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 15px;
+}
+
+.om-table th, .om-table td {
+  padding: 12px;
+  border: 1px solid #e2e8f0;
+  text-align: left;
+}
+
+.om-table th {
+  background-color: #f8fafc;
+  color: #334155;
+}
+
+.om-grid-2 {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 20px;
+}
+
+@media print {
+  .om-header, .om-nav-tabs, .om-no-print {
+    display: none !important;
+  }
+  .om-card {
+    box-shadow: none;
+    border: none;
+  }
+}
+
+.appointment-section {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.appointment-grid {
+  display: grid;
+  grid-template-columns: 1fr 2fr;
+  gap: 20px;
+}
+
+.app-table-card { overflow-x: auto; }
+
+.om-appointment-filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 12px 0;
+}
+
+.om-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 10px;
+}
+
+.om-table th, .om-table td {
+  border: 1px solid #ddd;
+  padding: 8px;
+  text-align: left;
+}
+
+.highlight-date {
+  color: #007bff;
+  font-weight: bold;
+}
+
+.om-appointment-actions { display: flex; flex-wrap: wrap; gap: 6px; min-width: 155px; }
+.om-appointment-actions button { white-space: nowrap; border: none; border-radius: 4px; padding: 5px 10px; cursor: pointer; }
+.om-appointment-status { display: inline-block; border-radius: 12px; padding: 4px 9px; font-size: 12px; font-weight: 700; }
+.om-appointment-status.pending { background: #fef3c7; color: #92400e; }
+.om-appointment-status.approved { background: #dbeafe; color: #1d4ed8; }
+.om-appointment-status.completed { background: #dcfce7; color: #166534; }
+.btn-approve { background: #2563eb; color: white; }
+.btn-complete { background: #15803d; color: white; }
+.btn-edit {
+  background-color: #ffc107;
+  border: none;
+  padding: 5px 10px;
+  margin-right: 5px;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.btn-delete {
+  background-color: #dc3545;
+  color: white;
+  border: none;
+  padding: 5px 10px;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.pass-card {
+  max-width: 500px;
+  margin: 0 auto;
+}
+
+.alert-success {
+  margin-top: 15px;
+  padding: 10px;
+  background-color: #d4edda;
+  color: #155724;
+  border-radius: 4px;
+  text-align: center;
+}
+
+.om-pass-error {
+  padding: 10px;
+  background: #fee2e2;
+  color: #991b1b;
+  border-radius: 4px;
+}
+
+.om-pass-details {
+  margin-top: 18px;
+  padding: 15px;
+  background: #f8fafc;
+  border: 1px solid #cbd5e1;
+  border-radius: 6px;
+}
+
+.om-pass-details p {
+  margin: 6px 0;
+}
+
+.om-invoice-sections {
+  max-width: 1120px;
+  margin: 0 auto;
+}
+
+.om-invoice-sections h3 { margin-top: 0; }
+.om-invoice-sections h4 { margin: 24px 0 8px; }
+.om-muted { color: #64748b; }
+.om-table-scroll { overflow-x: auto; }
+
+.om-charge-row {
+  display: grid;
+  grid-template-columns: minmax(160px, 1fr) minmax(230px, 2fr) minmax(130px, 1fr) auto;
+  gap: 10px;
+  align-items: center;
+  margin: 10px 0;
+}
+
+.om-invoice-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  margin-top: 15px;
+}
+
+.om-invoice-actions .om-payment-method { width: auto; min-width: 180px; }
+
+.om-inventory-layout { display: grid; grid-template-columns: minmax(280px, 360px) minmax(0, 1fr); gap: 20px; align-items: start; }
+.om-inventory-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+
+.om-invoice-total {
+  margin-top: 24px;
+  padding: 18px;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  background: #f8fafc;
+}
+
+.om-invoice-total > div {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
+  margin: 8px 0;
+}
+
+.om-invoice-tax .om-input { width: 110px; margin-left: auto; }
+.om-invoice-tax strong { min-width: 120px; text-align: right; }
+.om-grand-total { border-top: 1px solid #cbd5e1; padding-top: 12px; font-size: 18px; }
+.om-grand-total strong { color: #c2410c; }
+
+.om-invoice-error, .om-invoice-notice {
+  padding: 10px 12px;
+  border-radius: 6px;
+}
+
+.om-invoice-error { color: #991b1b; background: #fef2f2; }
+.om-invoice-notice { color: #166534; background: #f0fdf4; }
+
+@media (max-width: 760px) {
+  .om-inventory-layout { grid-template-columns: 1fr; }
+  .om-charge-row { grid-template-columns: 1fr; }
+  .om-invoice-tax { flex-wrap: wrap; }
+}

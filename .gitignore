@@ -1,0 +1,12 @@
+**/node_modules/
+frontend/build/
+backend/.env
+backend/.wwebjs_auth/
+backend/.wwebjs_cache/
+backend/whatsapp-qr.svg
+backend/whatsapp-qr.png
+backend/uploads/
+tmp/
+*.log
+*.sql.bak
+database-backups/
