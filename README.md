@@ -27,6 +27,8 @@ The `package.json` and `package-lock.json` files in **both** app folders list th
 2. Check `backend/.env`: `DB_HOST=localhost`, `DB_PORT=3306`, `DB_USER=root`, `DB_NAME=auto_care_db`, and your own `DB_PASSWORD`. Keep this file private.
 3. Double-click `Start-Lakisha.cmd` in the project folder. It starts the backend and frontend in separate windows, waits for both, and opens <http://localhost:3000>. It detects running instances so a second click does not start another WhatsApp browser on the same saved session. Keep the two app windows open while using the system.
 
+Double-click `Check-Lakisha.cmd` whenever the site does not open. It reports whether MySQL, the backend, and the frontend are reachable. If all three say `True`, open <http://localhost:3000>. If MySQL says `False`, start MySQL Server first; opening MySQL Workbench alone does not start it. If the backend or frontend says `False`, run `Start-Lakisha.cmd` and read the error in that component's window. A terminal that says `Compiled successfully` and stays open is normal: it is serving the frontend.
+
 If you prefer to start each part manually, open two PowerShell windows. In the first, run:
 
    ```powershell
@@ -44,6 +46,8 @@ In the second, run:
 Open <http://localhost:3000>. Check <http://localhost:5000/api/health> if the page says it cannot connect to the server. `npm.cmd ci` is needed only after downloading the project or changing dependencies; later starts need only `npm.cmd start` in each folder.
 
 PowerShell may block `npm.ps1` because of its script policy. Use `npm.cmd` as shown; the one-click launcher handles this too. The launcher uses a process-scoped PowerShell policy and does not change your Windows security setting.
+
+For a local check after changing code, run `npm.cmd test` in `backend` and `npm.cmd run build` in `frontend`. A successful build checks compilation, but it cannot guarantee that every workflow or future machine setup is error free. Keep a private backup of your MySQL database and `backend/.env`; neither is stored in GitHub.
 
 ## Set up a fresh clone
 

@@ -52,6 +52,32 @@ function Test-ListeningPort([int]$port) {
     return [bool](Get-NetTCPConnection -LocalPort $port -State Listen -ErrorAction SilentlyContinue)
 }
 
+function Test-DatabasePort {
+    $settings = @{}
+    Get-Content (Join-Path $backendDir '.env') | ForEach-Object {
+        if ($_ -match '^\s*(DB_HOST|DB_PORT)\s*=\s*(.*?)\s*$') {
+            $settings[$matches[1]] = $matches[2].Trim('"', "'")
+        }
+    }
+    $dbHost = if ($settings['DB_HOST']) { $settings['DB_HOST'] } else { 'localhost' }
+    $dbPort = 3306
+    if ($settings['DB_PORT'] -and -not [int]::TryParse($settings['DB_PORT'], [ref]$dbPort)) {
+        Write-Error 'DB_PORT in backend\.env must be a number.'
+        return $false
+    }
+    $client = New-Object System.Net.Sockets.TcpClient
+    try {
+        $connection = $client.BeginConnect($dbHost, $dbPort, $null, $null)
+        if (-not $connection.AsyncWaitHandle.WaitOne(3000)) { return $false }
+        $client.EndConnect($connection)
+        return $true
+    } catch {
+        return $false
+    } finally {
+        $client.Close()
+    }
+}
+
 if (-not (Get-Command npm.cmd -ErrorAction SilentlyContinue) -and
     (Test-Path 'C:\Program Files\nodejs\npm.cmd')) {
     $env:Path = "C:\Program Files\nodejs;$env:Path"
@@ -73,6 +99,21 @@ foreach ($folder in @($backendDir, $frontendDir)) {
 
 $backendReady = Test-LocalUrl 'http://127.0.0.1:5000/api/health'
 $frontendReady = Test-LakishaFrontend
+$databaseReady = Test-DatabasePort
+
+if ($CheckOnly) {
+    Write-Host "MySQL reachable: $databaseReady; backend ready: $backendReady; frontend ready: $frontendReady"
+    if (-not $databaseReady) { Write-Host 'Start MySQL Server, then run this check again. MySQL Workbench alone does not start the server.' }
+    if ($databaseReady -and -not $backendReady) { Write-Host 'Run Start-Lakisha.cmd and check the backend window for an error.' }
+    if (-not $frontendReady) { Write-Host 'Run Start-Lakisha.cmd and check the frontend window for an error.' }
+    if ($databaseReady -and $backendReady -and $frontendReady) { exit 0 }
+    exit 1
+}
+
+if (-not $databaseReady -and -not $backendReady) {
+    Write-Error 'Cannot reach MySQL. Start MySQL Server and check DB_HOST and DB_PORT in backend\.env, then run Start-Lakisha.cmd again.'
+    exit 1
+}
 
 if (-not $backendReady -and (Test-ListeningPort 5000)) {
     Write-Error 'Port 5000 is already in use by another app. Close it before starting Lakisha Auto Mart.'
@@ -81,11 +122,6 @@ if (-not $backendReady -and (Test-ListeningPort 5000)) {
 if (-not $frontendReady -and (Test-ListeningPort 3000)) {
     Write-Error 'Port 3000 is already in use by another app. Close it before starting Lakisha Auto Mart.'
     exit 1
-}
-
-if ($CheckOnly) {
-    Write-Host "Backend ready: $backendReady; frontend ready: $frontendReady"
-    exit 0
 }
 
 if ($backendReady) {
