@@ -33,24 +33,11 @@ export default function ServiceAdvisorDashboard({ user, onLogout }) {
     window.scrollTo({ top: 0, behavior: 'smooth' });
   }, []);
 
-  useEffect(() => {
-    fetchAllData();
-  }, []);
-
-  const fetchAllData = () => {
-    fetchVehicles();
-    fetchRequests();
-    fetchTechnicians();
-    fetchSpareParts();
-    fetchJobProgress();
-    fetchReassignModsData();
-  };
-
-  const fetchVehicles = async () => { try { const res = await axios.get(`${API_BASE}/vehicles`); if (res.data.success) {
+  const fetchVehicles = useCallback(async () => { try { const res = await axios.get(`${API_BASE}/vehicles`); if (res.data.success) {
     const rows = res.data.vehicles || [];
     setVehicles(rows);
     setInspection(current => rows.some(v => v.vehicleId === current.vehicleId && v.isFullyClosed) ? { ...current, vehicleId: '' } : current);
-  } } catch (e) { console.error(e); } };
+  } } catch (e) { console.error(e); } }, []);
   const fetchPendingRegistrations = useCallback(async () => {
     try {
       const res = await axios.get(`${API_BASE}/pending-registrations`);
@@ -64,14 +51,14 @@ export default function ServiceAdvisorDashboard({ user, onLogout }) {
     const interval = setInterval(fetchPendingRegistrations, 15000);
     return () => clearInterval(interval);
   }, [activeTab, fetchPendingRegistrations]);
-  const fetchRequests = async () => { try { const res = await axios.get(`${API_BASE}/requests`); if (res.data.success) {
+  const fetchRequests = useCallback(async () => { try { const res = await axios.get(`${API_BASE}/requests`); if (res.data.success) {
     const rows = res.data.requests || [];
     setRequests(rows);
     setAssignTech(current => rows.some(r => r.requestId === current.requestId && r.isFullyClosed) ? { ...current, requestId: '' } : current);
     setQualityCheck(current => rows.some(r => r.requestId === current.requestId && r.isFullyClosed) ? { ...current, requestId: '' } : current);
-  } } catch (e) { console.error(e); } };
-  const fetchTechnicians = async () => { try { const res = await axios.get(`${API_BASE}/technicians`); if (res.data.success) setTechnicians(res.data.technicians || []); } catch (e) { console.error(e); } };
-  const fetchSpareParts = async () => { try { const res = await axios.get(`${API_BASE}/spare-parts`); if (res.data.success) setSpareParts(res.data.items || []); } catch (e) { console.error(e); } };
+  } } catch (e) { console.error(e); } }, []);
+  const fetchTechnicians = useCallback(async () => { try { const res = await axios.get(`${API_BASE}/technicians`); if (res.data.success) setTechnicians(res.data.technicians || []); } catch (e) { console.error(e); } }, []);
+  const fetchSpareParts = useCallback(async () => { try { const res = await axios.get(`${API_BASE}/spare-parts`); if (res.data.success) setSpareParts(res.data.items || []); } catch (e) { console.error(e); } }, []);
   const fetchJobProgress = useCallback(async () => { try { const res = await axios.get(`${API_BASE}/job-progress`); if (res.data.success) {
     const rows = res.data.progress || [];
     setJobProgress(rows);
@@ -97,6 +84,15 @@ export default function ServiceAdvisorDashboard({ user, onLogout }) {
       if (res.data.success) setReassignModsData({ completedJobs: res.data.completedJobs, pendingMods: res.data.pendingMods });
     } catch (e) { console.error(e); }
   }, []);
+
+  useEffect(() => {
+    fetchVehicles();
+    fetchRequests();
+    fetchTechnicians();
+    fetchSpareParts();
+    fetchJobProgress();
+    fetchReassignModsData();
+  }, [fetchVehicles, fetchRequests, fetchTechnicians, fetchSpareParts, fetchJobProgress, fetchReassignModsData]);
 
   useEffect(() => {
     if (activeTab !== 'reassign') return undefined;
